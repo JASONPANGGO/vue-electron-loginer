@@ -10,12 +10,14 @@ module.exports = {
   },
   extends: 'standard',
   globals: {
-    __static: true
+    __static: true,
+    __lib: true
   },
   plugins: [
-    'html'
+    'html',
+    'transform-runtime'
   ],
-  'rules': {
+  rules: {
     // allow paren-less arrow functions
     'arrow-parens': 0,
     // allow async-await

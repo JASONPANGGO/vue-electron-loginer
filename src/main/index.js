@@ -1,89 +1,45 @@
 'use strict'
 
-import { exec } from 'child_process'
-import electron from 'electron'
-const app = electron.app
-const ipcMain = electron.ipcMain
-const BrowserWindow = electron.BrowserWindow
-const path = require('path')
-const fs = require('fs')
-// import { app, BrowserWindow, Menu } from 'electron'
+import { app, ipcMain } from 'electron'
+import initWindow from './services/windowManager'
+import electronDevtoolsInstaller, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
+import "./services/game"
 
-/**
- * Set `__static` path to static files in production
- * https://simulatedgreg.gitbooks.io/electron-vue/content/en/using-static-assets.html
- */
-if (process.env.NODE_ENV !== 'development') {
-  global.__static = require('path').join(__dirname, '/static').replace(/\\/g, '\\\\')
-}
-
-let mainWindow
-const winURL = process.env.NODE_ENV === 'development'
-  ? `http://localhost:9080`
-  : `file://${__dirname}/index.html`
-
-function createWindow () {
-  /**
-   * Initial window options
-   */
-  mainWindow = new BrowserWindow({
-    height: 563,
-    useContentSize: true,
-    width: 1000,
-    webPreferences: {
-      nodeIntegration: true
-    }
-  })
-
-  mainWindow.loadURL(winURL)
-
-  // Open dev tools initially when in development mode
+function onAppReady () {
+  initWindow()
   if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.on('did-frame-finish-load', () => {
-      mainWindow.webContents.once('devtools-opened', () => {
-        mainWindow.focus()
-      })
-      mainWindow.webContents.openDevTools()
-    })
+    electronDevtoolsInstaller(VUEJS_DEVTOOLS)
+      .then((name) => console.log(`installed: ${name}`))
+      .catch(err => console.log('Unable to install `vue-devtools`: \n', err))
   }
-
-  mainWindow.on('closed', () => {
-    mainWindow = null
-  })
 }
 
-app.on('ready', function () {
-  createWindow()
-})
+app.setName('mhtw')
+app.isReady() ? onAppReady() : app.on('ready', onAppReady)
+// 解决9.x跨域异常问题
+app.commandLine.appendSwitch('disable-features', 'OutOfBlinkCors')
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  // 所有平台均为所有窗口关闭就退出软件
+  app.quit()
 })
 
-app.on('activate', () => {
-  if (mainWindow === null) {
-    createWindow()
-  }
+
+ipcMain.on('quit', () => {
+  console.log('quittt');
+  app.exit()
 })
 
-ipcMain.on('write-file', (event, { filename, data }) => {
-  let result
-  try {
-    const filePath = path.join(process.cwd(), filename)
-    console.log('write-file: ', filePath)
-    fs.writeFileSync(filePath, data)
-    result = filePath
-  } catch (error) {
-    console.error(error)
-    result = JSON.stringify(error)
-  }
-  event.sender.send('write-file-result', result)
+
+app.on('browser-window-created', () => {
+  console.log('window-created')
 })
 
-ipcMain.on('launch-exe', (event, { name }) => {
-  const exePath = path.join(process.cwd(), name)
-  exec(exePath)
-  event.sender.send('launch-exe-result', exePath)
-})
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.removeAsDefaultProtocolClient('electron-vue-template')
+    console.log('有于框架特殊性开发环境下无法使用')
+  }
+} else {
+  app.setAsDefaultProtocolClient('electron-vue-template')
+}

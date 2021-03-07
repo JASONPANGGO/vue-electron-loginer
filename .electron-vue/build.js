@@ -5,14 +5,12 @@ process.env.NODE_ENV = 'production'
 const { say } = require('cfonts')
 const chalk = require('chalk')
 const del = require('del')
-const packager = require('electron-packager')
 const webpack = require('webpack')
 const Multispinner = require('multispinner')
 
-const buildConfig = require('./build.config')
+
 const mainConfig = require('./webpack.main.config')
 const rendererConfig = require('./webpack.renderer.config')
-const webConfig = require('./webpack.web.config')
 
 const doneLog = chalk.bgGreen.white(' DONE ') + ' '
 const errorLog = chalk.bgRed.white(' ERROR ') + ' '
@@ -23,13 +21,13 @@ if (process.env.BUILD_TARGET === 'clean') clean()
 else if (process.env.BUILD_TARGET === 'web') web()
 else build()
 
-function clean () {
-  del.sync(['build/*', '!build/icons', '!build/icons/icon.*'])
-  console.log(`\n${doneLog}\n`)
+function clean() {
+  del.sync(['dist/electron/*', 'dist/web/*', 'build/*', '!build/icons', '!build/lib', '!build/lib/electron-build.*', '!build/icons/icon.*'])
+  console.log(`\n${doneLog}clear done`)
   process.exit()
 }
 
-function build () {
+function build() {
   greeting()
 
   del.sync(['dist/electron/*', '!.gitkeep'])
@@ -45,8 +43,8 @@ function build () {
   m.on('success', () => {
     process.stdout.write('\x1B[2J\x1B[0f')
     console.log(`\n\n${results}`)
-    console.log(`${okayLog}take it away ${chalk.yellow('`electron-packager`')}\n`)
-    bundleApp()
+    console.log(`${okayLog}take it away ${chalk.yellow('`electron-builder`')}\n`)
+    process.exit()
   })
 
   pack(mainConfig).then(result => {
@@ -70,8 +68,9 @@ function build () {
   })
 }
 
-function pack (config) {
+function pack(config) {
   return new Promise((resolve, reject) => {
+    config.mode = 'production'
     webpack(config, (err, stats) => {
       if (err) reject(err.stack || err)
       else if (stats.hasErrors()) {
@@ -81,10 +80,10 @@ function pack (config) {
           chunks: false,
           colors: true
         })
-        .split(/\r?\n/)
-        .forEach(line => {
-          err += `    ${line}\n`
-        })
+          .split(/\r?\n/)
+          .forEach(line => {
+            err += `    ${line}\n`
+          })
 
         reject(err)
       } else {
@@ -97,20 +96,10 @@ function pack (config) {
   })
 }
 
-function bundleApp () {
-  packager(buildConfig, (err, appPaths) => {
-    if (err) {
-      console.log(`\n${errorLog}${chalk.yellow('`electron-packager`')} says...\n`)
-      console.log(err + '\n')
-    } else {
-      console.log(`\n${doneLog}\n`)
-    }
-  })
-}
-
-function web () {
+function web() {
   del.sync(['dist/web/*', '!.gitkeep'])
-  webpack(webConfig, (err, stats) => {
+  rendererConfig.mode = 'production'
+  webpack(rendererConfig, (err, stats) => {
     if (err || stats.hasErrors()) console.log(err)
 
     console.log(stats.toString({
@@ -122,12 +111,12 @@ function web () {
   })
 }
 
-function greeting () {
+function greeting() {
   const cols = process.stdout.columns
   let text = ''
 
-  if (cols > 85) text = 'lets-build'
-  else if (cols > 60) text = 'lets-|build'
+  if (cols > 85) text = `let's-build`
+  else if (cols > 60) text = `let's-|build`
   else text = false
 
   if (text && !isCI) {
@@ -136,6 +125,6 @@ function greeting () {
       font: 'simple3d',
       space: false
     })
-  } else console.log(chalk.yellow.bold('\n  lets-build'))
+  } else console.log(chalk.yellow.bold(`\n  let's-build`))
   console.log()
 }

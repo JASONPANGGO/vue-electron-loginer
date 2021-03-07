@@ -5,8 +5,11 @@ process.env.BABEL_ENV = 'main'
 const path = require('path')
 const { dependencies } = require('../package.json')
 const webpack = require('webpack')
+const config = require('../_config')
 
-const BabiliWebpackPlugin = require('babili-webpack-plugin')
+function resolve (dir) {
+  return path.join(__dirname, '..', dir)
+}
 
 let mainConfig = {
   entry: {
@@ -17,21 +20,27 @@ let mainConfig = {
   ],
   module: {
     rules: [
-      {
-        test: /\.(js)$/,
-        enforce: 'pre',
-        exclude: /node_modules/,
-        use: {
-          loader: 'eslint-loader',
-          options: {
-            formatter: require('eslint-friendly-formatter')
-          }
-        }
-      },
+      // {
+      //   test: /\.(js)$/,
+      //   enforce: 'pre',
+      //   exclude: /node_modules/,
+      //   use: {
+      //     loader: 'eslint-loader',
+      //     options: {
+      //       formatter: require('eslint-friendly-formatter')
+      //     }
+      //   }
+      // },
       {
         test: /\.js$/,
-        use: 'babel-loader',
+        use: ['thread-loader', {
+          loader: 'babel-loader',
+          options: {
+            cacheDirectory: true
+          }
+        }],
         exclude: /node_modules/
+
       },
       {
         test: /\.node$/,
@@ -48,11 +57,12 @@ let mainConfig = {
     libraryTarget: 'commonjs2',
     path: path.join(__dirname, '../dist/electron')
   },
-  plugins: [
-    new webpack.NoEmitOnErrorsPlugin()
-  ],
+  plugins: [],
   resolve: {
-    extensions: ['.js', '.json', '.node']
+    alias: {
+      '@config': resolve('_config'),
+    },
+    extensions: ['.tsx', '.ts', '.js', '.json', '.node']
   },
   target: 'electron-main'
 }
@@ -63,7 +73,8 @@ let mainConfig = {
 if (process.env.NODE_ENV !== 'production') {
   mainConfig.plugins.push(
     new webpack.DefinePlugin({
-      '__static': `"${path.join(__dirname, '../static').replace(/\\/g, '\\\\')}"`
+      '__static': `"${path.join(__dirname, '../static').replace(/\\/g, '\\\\')}"`,
+      'process.env.libPath': `"${path.join(__dirname, `../${config.DllFolder}`).replace(/\\/g, '\\\\')}"`
     })
   )
 }
@@ -73,7 +84,6 @@ if (process.env.NODE_ENV !== 'production') {
  */
 if (process.env.NODE_ENV === 'production') {
   mainConfig.plugins.push(
-    new BabiliWebpackPlugin(),
     new webpack.DefinePlugin({
       'process.env.NODE_ENV': '"production"'
     })
